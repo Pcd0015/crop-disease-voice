@@ -28,8 +28,12 @@ ENV STREAMLIT_SERVER_PORT=7860 \
     STREAMLIT_SERVER_ENABLE_CORS=false \
     STREAMLIT_SERVER_ENABLE_XSRF_PROTECTION=false
 
-# Create a non-root user (HF Spaces best practice — avoids permission warnings)
-RUN useradd -m -u 1000 appuser
+# Create a non-root user and hand it ownership of /app — without this,
+# files copied in as root can't have new subdirectories (like storage/)
+# created inside them at runtime by the app process
+RUN useradd -m -u 1000 appuser && \
+    mkdir -p /app/storage && \
+    chown -R appuser:appuser /app
 USER appuser
 
 CMD streamlit run streamlit_app.py --server.port=${PORT:-7860} --server.address=0.0.0.0
