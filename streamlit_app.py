@@ -135,9 +135,13 @@ if diagnose_clicked and uploaded_image is not None:
                 weather_error = str(e)
 
     progress = None
+    community_note = None
     if routed.action == "give_advice":
         progress = history_store.get_progress_info(
             routed.diagnosis.predicted_class, routed.diagnosis.confidence
+        )
+        community_note = history_store.get_community_sightings_note(
+            routed.diagnosis.predicted_class
         )
     progress_note = history_store.format_progress_note(progress) if progress else None
 
@@ -149,6 +153,7 @@ if diagnose_clicked and uploaded_image is not None:
                 language=language,
                 weather_risk_note=weather.risk_note if weather else None,
                 progress_note=progress_note,
+                community_note=community_note,
             )
             spoken_text = advice.text
             st.session_state.session = ConversationSession(
@@ -182,7 +187,13 @@ if diagnose_clicked and uploaded_image is not None:
         "weather": weather,
         "weather_error": weather_error,
         "progress": progress,
+        "community_note": community_note,
     }
+
+    # Refresh immediately so the sidebar's Diagnosis History reflects this
+    # entry right away, instead of lagging one diagnosis behind until the
+    # next interaction (e.g. a follow-up question) triggers a rerun.
+    st.rerun()
 
 # ---------------------------------------------------------------------------
 # Display result
@@ -213,6 +224,9 @@ if st.session_state.last_result:
         p = result["progress"]
         prev_conf = f"{p.previous_entry.confidence:.0%}" if p.previous_entry.confidence else "unknown"
         st.info(f"📋 {history_store.format_progress_note(p)} (was {prev_conf} confidence then)")
+
+    if result.get("community_note"):
+        st.info(f"👥 {result['community_note']}")
 
     st.write(result["spoken_text"])
     st.audio(result["audio_path"])

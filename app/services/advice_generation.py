@@ -39,7 +39,7 @@ smallholder farmer. Your response will be read aloud via text-to-speech, so:
 
 The farmer's crop has been diagnosed as: {diagnosis}
 Confidence: {confidence:.0%}
-{weather_context}{progress_context}
+{weather_context}{progress_context}{community_context}
 Give advice in exactly this structure, spoken naturally (do not print headers/labels,
 just speak the two options as flowing sentences):
 1. A one-sentence plain-language explanation of what this disease/issue is.
@@ -51,6 +51,8 @@ just speak the two options as flowing sentences):
    mention that so the farmer knows to act a bit sooner — otherwise skip this point.
 6. If this is a repeat case (noted above), briefly acknowledge it and mention whether
    it looks better, worse, or about the same as last time — otherwise skip this point.
+7. If other users have logged this same issue recently (noted above), briefly mention
+   it's been going around locally — otherwise skip this point.
 
 Keep the whole response under 150 words — remember, this will be spoken aloud, not read.
 """
@@ -127,15 +129,18 @@ def generate_advice(
     language: str = "English",
     weather_risk_note: Optional[str] = None,
     progress_note: Optional[str] = None,
+    community_note: Optional[str] = None,
 ) -> AdviceResult:
     weather_context = f"\nCurrent weather note: {weather_risk_note}\n" if weather_risk_note else ""
     progress_context = f"\nRepeat case note: {progress_note}\n" if progress_note else ""
+    community_context = f"\nCommunity note: {community_note}\n" if community_note else ""
     prompt = ADVICE_PROMPT.format(
         diagnosis=diagnosis,
         confidence=confidence,
         language=language,
         weather_context=weather_context,
         progress_context=progress_context,
+        community_context=community_context,
     )
     text = _generate(prompt)
     return AdviceResult(text=text, language=language)

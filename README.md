@@ -174,15 +174,51 @@ Drop `crop_disease_model.tflite` + `class_names.json` into `app/models/`,
 restart the Streamlit app, untick Demo mode — now every diagnosis is a real
 model prediction instead of the fake one.
 
-## Next steps
+## Step 4: Follow-up conversation — done
 
-- **Step 4:** Follow-up conversation is already wired into the UI above —
-  consider this done, may revisit for polish (e.g. voice-only, no typing)
-- **Step 5:** Weather risk context, Agmarknet mandi price lookup, gov scheme
-  pointer — add as new sections in the Streamlit app
-- **Step 6:** Progress tracking across repeat photos (uses `history_store.py`,
-  already tracking timestamps + diagnosis class — needs a "compare to last
-  time" view), lightweight regional awareness (`get_recent_by_class` is
-  already built for this)
-- **Step 7:** Dockerize + deploy free on Hugging Face Spaces
+Grounded, multilingual follow-up Q&A wired into the Streamlit UI, with
+vague/greeting handling and no meta-commentary leakage (fixed a Gemini
+thinking-mode token budget bug that was truncating/garbling answers).
+
+## Step 5: Weather risk context — done (partial)
+
+- ✅ OpenWeatherMap integration: current temp/humidity/conditions surfaced
+  next to the diagnosis, plus a plain-language fungal-disease risk note when
+  humidity/temperature fall in a high-risk band.
+- ❌ Agmarknet mandi price lookup — not built.
+- ❌ Gov scheme pointer — not built.
+
+## Step 6: Progress tracking + community sightings — done
+
+- ✅ **Progress tracking**: `history_store.get_progress_info()` finds the
+  most recent prior diagnosis of the same class and tells the farmer
+  whether this looks better, worse, or about the same as last time.
+- ✅ **Community sightings** (the "lightweight regional awareness" item):
+  `history_store.get_community_sightings_note()` counts how many other
+  diagnoses of the same class were logged on this deployed instance in the
+  last 14 days, and both Gemini's advice text and the UI mention it when
+  present. **Scope/honesty note:** this is not GPS-based — no location is
+  collected per entry — so it reflects "how often this app has seen this
+  diagnosis recently," not a verified geographic radius. Framed as
+  "logged by other users of this app," not "near you."
+- ✅ Fixed a bug where the sidebar's Diagnosis History lagged one entry
+  behind — the diagnose flow now reruns immediately after saving, so new
+  entries show up right away instead of waiting for the next interaction.
+
+## Step 7: Deploy — done
+
+Live on Render (free tier) via Docker. Model served via `.keras`/TFLite,
+Gemini key and OpenWeatherMap key read from environment secrets, never
+hardcoded.
+
+## What's left (optional polish, not required for a working product)
+
+- On-device offline inference (TFLite already exported, just needs a
+  client-side integration path — no plan for this yet)
+- Diagnosis history persistence across redeploys (currently resets on
+  restart on Render's free tier, since there's no attached persistent
+  volume — would need Render's paid disk add-on or an external DB like
+  Supabase's free tier)
+- Blockchain traceability module (mentioned in the original spec as a
+  "future-ready" stretch feature — not started)
 

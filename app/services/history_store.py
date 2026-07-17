@@ -7,7 +7,7 @@ and lays the groundwork for Step 6's progress-tracking feature
 import os
 import sqlite3
 from dataclasses import dataclass
-from datetime import datetime
+from datetime import datetime, timedelta
 from typing import Optional
 
 DB_PATH = "storage/history.db"
@@ -121,6 +121,30 @@ def get_progress_info(diagnosis_class: str, current_confidence: Optional[float])
         confidence_delta = current_confidence - previous.confidence
 
     return ProgressInfo(previous_entry=previous, days_since=days_since, confidence_delta=confidence_delta)
+
+
+def get_community_sightings_note(diagnosis_class: str, days: int = 14) -> Optional[str]:
+    """
+    Lightweight community-awareness note: counts how many OTHER diagnoses of
+    this same class have been logged on this deployed instance recently.
+
+    Scope/honesty note: this is NOT geographic/regional data — we don't
+    collect location per entry, so "nearby" isn't something we can actually
+    verify. What we can honestly say is "how many times has this app itself
+    seen this diagnosis recently," which is a reasonable proxy IF most users
+    of a given deployment happen to be in the same area, but shouldn't be
+    oversold as a location-aware feature. Call this BEFORE save_entry() for
+    the current diagnosis so it naturally excludes the current visit.
+    """
+    entries = get_recent_by_class(diagnosis_class, limit=20)
+    cutoff = datetime.utcnow() - timedelta(days=days)
+    recent = [e for e in entries if datetime.fromisoformat(e.timestamp) >= cutoff]
+    if not recent:
+        return None
+    count = len(recent)
+    if count == 1:
+        return "This same issue was logged once more recently by another user of this app."
+    return f"This same issue was logged {count} more times recently by other users of this app."
 
 
 def format_progress_note(progress: ProgressInfo) -> str:
