@@ -1,0 +1,17 @@
+# --- Step 1: disease detection inference ---
+tensorflow-cpu>=2.17.0    # CPU-only build — smaller, free, fine for TFLite inference
+numpy>=1.26.0
+Pillow>=11.0.0
+pytest>=8.3.0
+
+# --- Step 2: voice pipeline ---
+faster-whisper>=1.0.0     # free, local speech-to-text (no API cost)
+google-genai>=1.0.0        # current official Gemini SDK
+gTTS>=2.5.0                # free text-to-speech (needs internet, no API key)
+python-dotenv>=1.0.1
+
+# --- Step 3: UI ---
+streamlit>=1.38.0          # includes st.audio_input for browser voice recording
+
+# --- Added in later steps (deployment) ---
+# requests>=2.32.0   # for weather / mandi price APIs (Step 5)

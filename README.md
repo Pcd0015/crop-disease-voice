@@ -1,0 +1,188 @@
+---
+title: Crop Disease Voice Assistant
+emoji: 🌾
+colorFrom: green
+colorTo: yellow
+sdk: docker
+app_port: 7860
+pinned: false
+---
+
+# Crop Disease System with Voice — Step 1: Disease Detection Model
+
+This is Step 1 of the full project. Scope: train and wire up the computer-vision
+disease detection model, with confidence-based routing logic. Voice, LLM advice,
+UI, and deployment come in later steps.
+
+## What's here
+
+```
+crop_disease_voice/
+├── training/
+│   └── train_disease_model.py   # Run this on Google Colab (free GPU)
+├── app/
+│   ├── services/
+│   │   ├── disease_detection.py  # Loads trained model, runs inference
+│   │   └── response_router.py    # Confidence-tier routing (high/medium/low)
+│   └── models/                    # Put your trained model files here
+│       └── README.md
+├── tests/
+│   └── test_disease_detection.py # Tests the routing logic (no model needed)
+└── requirements.txt
+```
+
+## Step 1 setup
+
+### 1. Train the model (Google Colab — free)
+
+1. Go to https://colab.research.google.com/, create a new notebook.
+2. Runtime → Change runtime type → **T4 GPU** (free tier).
+3. Copy the entire contents of `training/train_disease_model.py` into a cell, run it.
+4. Takes ~30-45 min on the free GPU. Trains an EfficientNetB0 on the PlantVillage
+   dataset (38 disease classes across 14 crops), auto-downloaded via
+   `tensorflow_datasets` — no manual dataset download or Kaggle account needed.
+5. At the end, download from the Colab file browser (left sidebar, folder icon):
+   - `crop_disease_model.tflite`
+   - `class_names.json`
+6. Place both files into `app/models/` in this project.
+
+### 2. Install local dependencies (for testing the inference code)
+
+```bash
+python -m venv venv
+source venv/bin/activate       # Windows: venv\Scripts\activate
+pip install -r requirements.txt
+```
+
+### 3. Run the logic tests (works even before you've trained the model)
+
+```bash
+pytest tests/ -v
+```
+
+### 4. Try a real prediction (after model files are in place)
+
+```python
+from app.services.disease_detection import diagnose_image
+from app.services.response_router import route
+
+diagnosis = diagnose_image("path/to/leaf_photo.jpg")
+result = route(diagnosis)
+print(result.action)   # give_advice | request_better_photo | flag_for_expert
+print(result.message)
+```
+
+## What determines quality here
+
+- **Data augmentation during training** (rotation, zoom, brightness/contrast shifts)
+  matters a lot — PlantVillage photos are clean lab shots, but real farmer photos
+  won't be, so the augmentation simulates that gap.
+- **Two-stage transfer learning** (frozen base → fine-tune top layers) — skipping
+  stage 2 is the most common reason transfer-learning projects underperform.
+- **TFLite export** — smaller/faster for CPU-only free hosting later (Hugging Face
+  Spaces / Render free tier have no GPU).
+- **Confidence tiering** — this is the actual "advanced" feature here: the system
+  is honest about uncertainty instead of always confidently giving an answer.
+
+## Step 2: Voice Pipeline (NEW)
+
+Adds: speech-to-text, Gemini-generated advice (multilingual, organic/chemical
+tracks), text-to-speech, and the orchestration layer tying it all together.
+
+### Setup
+
+```bash
+pip install -r requirements.txt   # now includes faster-whisper, gTTS, google-generativeai
+
+# Create a .env file (or export directly) with your free Gemini key:
+echo "GEMINI_API_KEY=your_key_here" > .env
+```
+
+Get a free Gemini API key at https://aistudio.google.com/apikey — no card required.
+
+### Test the wiring WITHOUT your trained model or a live API key
+
+```bash
+pytest tests/test_voice_pipeline.py -v
+```
+
+This uses mocks for `diagnose_image`, `generate_advice`, and `synthesize_speech`,
+so it verifies the pipeline logic (confidence routing, when Gemini gets called
+vs skipped, session state) is correct independent of whether your model has
+finished training or your API key is set up yet.
+
+### Try it for real (once your Step 1 model files are in `app/models/`)
+
+```python
+from dotenv import load_dotenv
+load_dotenv()
+
+from app.services.voice_pipeline import process_photo_and_voice
+
+result = process_photo_and_voice(image_path="test_leaf.jpg", language="Hindi")
+print(result.action)        # give_advice | request_better_photo | flag_for_expert
+print(result.spoken_text)   # the advice text, in Hindi
+print(result.audio_path)    # path to the generated MP3 — play this file to hear it
+```
+
+### What's in `app/services/` now
+
+- `speech_to_text.py` — faster-whisper, free, runs locally, auto-detects language
+- `advice_generation.py` — Gemini: generates advice (organic + chemical tracks,
+  multilingual) and supports grounded follow-up conversation (used in Step 4)
+- `text_to_speech.py` — gTTS, free, supports Hindi/Marathi/Telugu/Tamil/Bengali/
+  Kannada/Gujarati/Punjabi/English (extend `LANGUAGE_CODES` for more)
+- `voice_pipeline.py` — orchestrates: photo -> diagnosis -> routing -> advice -> speech
+
+## Step 3: Streamlit UI (NEW)
+
+A real clickable app tying everything together: photo upload, optional voice
+question, spoken multilingual advice, follow-up conversation, and a diagnosis
+history log — all in one page.
+
+### Run it
+
+```bash
+pip install -r requirements.txt   # now includes streamlit
+streamlit run streamlit_app.py
+```
+
+This opens in your browser automatically (usually http://localhost:8501).
+
+### Demo Mode — use this while your model is still training
+
+The sidebar has a **"Demo mode"** checkbox, automatically enabled if no
+trained model files are found in `app/models/`. With it on, the app runs
+the entire UI flow (photo upload → fake high-confidence diagnosis → real
+Gemini advice → real voice output → real follow-up conversation) without
+needing your trained model at all. Once your model files are in place,
+untick it (or it'll auto-detect and default to off) to use real predictions.
+
+### What you can test right now, before training finishes
+
+1. Upload any leaf photo (doesn't matter what it actually shows — Demo
+   mode ignores the image content and always returns a fake Late Blight
+   diagnosis, just to exercise the full flow)
+2. Optionally record a voice question using the browser mic
+3. Click Diagnose — see the diagnosis, hear the spoken advice
+4. Ask a follow-up question (typed or by voice) — grounded in the diagnosis
+5. Check the sidebar — your diagnosis just got logged to history
+
+### Once your model is ready
+
+Drop `crop_disease_model.tflite` + `class_names.json` into `app/models/`,
+restart the Streamlit app, untick Demo mode — now every diagnosis is a real
+model prediction instead of the fake one.
+
+## Next steps
+
+- **Step 4:** Follow-up conversation is already wired into the UI above —
+  consider this done, may revisit for polish (e.g. voice-only, no typing)
+- **Step 5:** Weather risk context, Agmarknet mandi price lookup, gov scheme
+  pointer — add as new sections in the Streamlit app
+- **Step 6:** Progress tracking across repeat photos (uses `history_store.py`,
+  already tracking timestamps + diagnosis class — needs a "compare to last
+  time" view), lightweight regional awareness (`get_recent_by_class` is
+  already built for this)
+- **Step 7:** Dockerize + deploy free on Hugging Face Spaces
+

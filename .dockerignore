@@ -1,0 +1,30 @@
+# Python
+__pycache__/
+*.pyc
+*.pyo
+.pytest_cache/
+.venv/
+venv/
+env/
+
+# Git / IDE
+.git/
+.gitignore
+.vscode/
+.idea/
+
+# Streamlit secrets — NEVER bake API keys into the image
+.streamlit/secrets.toml
+
+# Notebooks / training artifacts — not needed at inference time in the container
+*.ipynb
+training/data/
+data/
+.ipynb_checkpoints/
+
+# Local packaging leftovers
+*.zip
+.DS_Store
+
+# runtime SQLite db shouldn't ship in the image
+storage/
