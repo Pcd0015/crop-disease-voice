@@ -17,6 +17,7 @@ anyway, so plain generation is simpler and appropriate for this use case.
 """
 import os
 from dataclasses import dataclass, field
+from typing import Optional
 
 from google import genai
 from google.genai import types
@@ -38,7 +39,7 @@ smallholder farmer. Your response will be read aloud via text-to-speech, so:
 
 The farmer's crop has been diagnosed as: {diagnosis}
 Confidence: {confidence:.0%}
-
+{weather_context}
 Give advice in exactly this structure, spoken naturally (do not print headers/labels,
 just speak the two options as flowing sentences):
 1. A one-sentence plain-language explanation of what this disease/issue is.
@@ -46,6 +47,8 @@ just speak the two options as flowing sentences):
 3. A faster-acting chemical treatment option (name a general category of treatment,
    not a specific commercial brand).
 4. One sentence on how to prevent this from happening again next season.
+5. If current weather conditions are noted above as raising disease risk, briefly
+   mention that so the farmer knows to act a bit sooner — otherwise skip this point.
 
 Keep the whole response under 150 words — remember, this will be spoken aloud, not read.
 """
@@ -116,8 +119,16 @@ def _generate(prompt: str) -> str:
     return response.text.strip()
 
 
-def generate_advice(diagnosis: str, confidence: float, language: str = "English") -> AdviceResult:
-    prompt = ADVICE_PROMPT.format(diagnosis=diagnosis, confidence=confidence, language=language)
+def generate_advice(
+    diagnosis: str,
+    confidence: float,
+    language: str = "English",
+    weather_risk_note: Optional[str] = None,
+) -> AdviceResult:
+    weather_context = f"\nCurrent weather note: {weather_risk_note}\n" if weather_risk_note else ""
+    prompt = ADVICE_PROMPT.format(
+        diagnosis=diagnosis, confidence=confidence, language=language, weather_context=weather_context
+    )
     text = _generate(prompt)
     return AdviceResult(text=text, language=language)
 

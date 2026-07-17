@@ -13,5 +13,5 @@ python-dotenv>=1.0.1
 # --- Step 3: UI ---
 streamlit>=1.38.0          # includes st.audio_input for browser voice recording
 
-# --- Added in later steps (deployment) ---
-# requests>=2.32.0   # for weather / mandi price APIs (Step 5)
+# --- Step 5: weather risk context ---
+requests>=2.32.0    # OpenWeatherMap free tier — no extra cost

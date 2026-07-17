@@ -26,6 +26,7 @@ from app.services.advice_generation import generate_advice, ConversationSession,
 from app.services.text_to_speech import synthesize_speech, LANGUAGE_CODES
 from app.services.speech_to_text import transcribe
 from app.services import history_store
+from app.services.weather import get_weather
 
 st.set_page_config(page_title="Crop Disease Voice Assistant", page_icon="🌾", layout="centered")
 
@@ -52,6 +53,13 @@ with st.sidebar:
             "No trained model found in app/models/. Enable Demo mode above, "
             "or add crop_disease_model.tflite + class_names.json once training finishes."
         )
+
+    st.divider()
+    city = st.text_input(
+        "Your city (optional)",
+        help="Used to check current humidity/temperature for a fungal-disease "
+             "risk note alongside your diagnosis. Leave blank to skip.",
+    )
 
     st.divider()
     st.header("Diagnosis History")
@@ -116,12 +124,23 @@ if diagnose_clicked and uploaded_image is not None:
 
         routed = route(diagnosis)
 
+    weather = None
+    weather_error = None
+    if city.strip():
+        with st.spinner("Checking local weather..."):
+            try:
+                weather = get_weather(city.strip())
+            except Exception as e:
+                # Weather is a bonus, not required — never block a diagnosis on it
+                weather_error = str(e)
+
     if routed.action == "give_advice":
         with st.spinner("Getting advice..."):
             advice = generate_advice(
                 diagnosis=routed.diagnosis.predicted_class,
                 confidence=routed.diagnosis.confidence,
                 language=language,
+                weather_risk_note=weather.risk_note if weather else None,
             )
             spoken_text = advice.text
             st.session_state.session = ConversationSession(
@@ -152,6 +171,8 @@ if diagnose_clicked and uploaded_image is not None:
         "spoken_text": spoken_text,
         "audio_path": audio_path,
         "diagnosis": routed.diagnosis,
+        "weather": weather,
+        "weather_error": weather_error,
     }
 
 # ---------------------------------------------------------------------------
@@ -168,6 +189,16 @@ if st.session_state.last_result:
         st.warning(result["message"])
     else:
         st.error(result["message"])
+
+    if result.get("weather"):
+        w = result["weather"]
+        icon = "⚠️" if w.risk_note else "🌤️"
+        st.info(
+            f"{icon} **{w.city}:** {w.temp_c:.0f}°C, {w.humidity}% humidity, {w.description}"
+            + (f"\n\n{w.risk_note}" if w.risk_note else "")
+        )
+    elif result.get("weather_error"):
+        st.caption(f"Weather check skipped: {result['weather_error']}")
 
     st.write(result["spoken_text"])
     st.audio(result["audio_path"])

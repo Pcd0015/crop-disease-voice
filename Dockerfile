@@ -1,4 +1,4 @@
-# Crop Disease Voice Assistant — container image for Hugging Face Spaces (Docker SDK)
+# Crop Disease Voice Assistant — container image for Render.com (Docker runtime)
 FROM python:3.11-slim
 
 WORKDIR /app
@@ -32,4 +32,4 @@ ENV STREAMLIT_SERVER_PORT=7860 \
 RUN useradd -m -u 1000 appuser
 USER appuser
 
-CMD ["streamlit", "run", "streamlit_app.py", "--server.port=7860", "--server.address=0.0.0.0"]
+CMD streamlit run streamlit_app.py --server.port=${PORT:-7860} --server.address=0.0.0.0
