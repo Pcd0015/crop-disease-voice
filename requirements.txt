@@ -11,7 +11,7 @@ gTTS>=2.5.0                # free text-to-speech (needs internet, no API key)
 python-dotenv>=1.0.1
 
 # --- Step 3: UI ---
-streamlit>=1.38.0          # includes st.audio_input for browser voice recording
+streamlit>=1.38.0          # includes st.audio_input (voice) and st.camera_input (live photo capture)
 
 # --- Step 5: weather risk context ---
 requests>=2.32.0    # OpenWeatherMap free tier — no extra cost

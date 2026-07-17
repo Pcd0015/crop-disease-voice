@@ -14,6 +14,7 @@ from typing import Optional
 import requests
 
 BASE_URL = "https://api.openweathermap.org/data/2.5/weather"
+FORECAST_URL = "https://api.openweathermap.org/data/2.5/forecast"
 
 
 @dataclass
@@ -78,3 +79,56 @@ def get_weather(city: str) -> WeatherInfo:
         description=description,
         risk_note=_assess_risk(temp_c, humidity),
     )
+
+
+@dataclass
+class ForecastRiskWindow:
+    when: str          # e.g. "Tomorrow 3 PM"
+    temp_c: float
+    humidity: int
+    description: str
+
+
+def get_risk_forecast(city: str, hours_ahead: int = 72) -> list[ForecastRiskWindow]:
+    """
+    Scans OpenWeatherMap's free 5-day/3-hour forecast (same free API key,
+    no extra cost) for upcoming windows where humidity/temperature fall
+    into the fungal-disease risk band, so a farmer can act BEFORE the
+    risk window arrives rather than only after symptoms already appear.
+
+    This is a forward-looking early-warning feature Plantix's free tier
+    doesn't offer (it only shows current conditions) — kept intentionally
+    simple and transparent rather than claiming precision it doesn't have.
+
+    Raises the same exceptions as get_weather() for the caller to handle.
+    """
+    api_key = os.environ.get("OPENWEATHER_API_KEY")
+    if not api_key:
+        raise ValueError("OPENWEATHER_API_KEY not set")
+
+    response = requests.get(
+        FORECAST_URL,
+        params={"q": city, "appid": api_key, "units": "metric"},
+        timeout=8,
+    )
+    if response.status_code == 404:
+        raise ValueError(f"City not found: {city}")
+    response.raise_for_status()
+    data = response.json()
+
+    max_entries = min(len(data.get("list", [])), hours_ahead // 3)
+    risky_windows = []
+    for entry in data["list"][:max_entries]:
+        temp_c = entry["main"]["temp"]
+        humidity = entry["main"]["humidity"]
+        if _assess_risk(temp_c, humidity) is not None:
+            dt_txt = entry["dt_txt"]  # "2026-07-18 15:00:00"
+            risky_windows.append(
+                ForecastRiskWindow(
+                    when=dt_txt,
+                    temp_c=temp_c,
+                    humidity=humidity,
+                    description=entry["weather"][0]["description"],
+                )
+            )
+    return risky_windows

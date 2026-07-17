@@ -211,6 +211,39 @@ Live on Render (free tier) via Docker. Model served via `.keras`/TFLite,
 Gemini key and OpenWeatherMap key read from environment secrets, never
 hardcoded.
 
+## Step 8: Plantix-inspired free features + unique differentiators — done
+
+Compared against Plantix's actual free feature set and closed the real gaps
+without chasing the parts that need Plantix's scale (10M+ users) to work well:
+
+- ✅ **Live camera capture** — sidebar radio lets a farmer choose "Upload from
+  gallery" or "Take a photo now" (`st.camera_input`), so a phone camera can
+  feed a photo straight in without a separate gallery step. No new dependency
+  — ships with the Streamlit version already pinned.
+- ✅ **Disease reference library** (`app/data/disease_library.py`, new
+  "📚 Disease Library" tab) — browse symptoms/prevention for all 38 trained
+  classes without uploading a photo, filterable by crop. Mirrors Plantix's
+  library feature; fully static, zero API cost.
+- ✅ **Fertilizer calculator** (`app/services/fertilizer_calculator.py`, new
+  "🧪 Fertilizer Calculator" tab) — N-P-K estimate by crop, growth stage, and
+  land area. Static reference rates, explicitly labeled as a starting
+  estimate, not a soil-test replacement. Mirrors Plantix's calculator;
+  zero API cost.
+- ✅ **Forward-looking disease-risk forecast** (`weather.get_risk_forecast()`)
+  — a genuine differentiator, not a Plantix feature: scans the next 3 days
+  of OpenWeatherMap's free 5-day/3-hour forecast for humidity/temperature
+  windows that favor fungal disease, so a farmer can act *before* symptoms
+  appear instead of only after. Same free API key as the existing weather
+  check, no extra cost.
+- **Deliberately not built** (need Plantix's 10M+ user scale to work well,
+  not free-tier-buildable at real quality): a farmer community forum, and
+  true GPS-based regional outbreak mapping (the existing "community
+  sightings" note is an honest, smaller-scope stand-in — see Step 6).
+- **Already-existing differentiators vs. Plantix** (not new, just reaffirmed
+  by this comparison): the voice interface end-to-end, and honest
+  confidence-tier routing (Plantix always gives a confident answer; this
+  app explicitly asks for a better photo or flags an expert below 80%).
+
 ## What's left (optional polish, not required for a working product)
 
 - On-device offline inference (TFLite already exported, just needs a
