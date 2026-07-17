@@ -32,9 +32,14 @@ from app.services.speech_to_text import transcribe
 from app.services import history_store
 from app.services.weather import get_weather, get_risk_forecast
 from app.services import fertilizer_calculator
-from app.data.disease_library import DISEASE_LIBRARY, get_all_crops, get_entries_for_crop
+from app.data.disease_library import (
+    DISEASE_LIBRARY, get_all_crops, get_entries_for_crop,
+    count_diagnosable, count_reference_only,
+)
+from app.ui_theme import CUSTOM_CSS, banner_html, step_html, field_report_html, tag_pill_html, TIER_COLORS
 
 st.set_page_config(page_title="Crop Disease Voice Assistant", page_icon="🌾", layout="centered")
+st.markdown(f"<style>{CUSTOM_CSS}</style>", unsafe_allow_html=True)
 
 MODEL_FILES_PRESENT = (
     os.path.exists("app/models/crop_disease_model.tflite")
@@ -45,7 +50,9 @@ MODEL_FILES_PRESENT = (
 # Sidebar: language selector + diagnosis history
 # ---------------------------------------------------------------------------
 with st.sidebar:
-    st.header("Settings")
+    st.markdown('<span class="eyebrow">Settings</span>', unsafe_allow_html=True)
+    st.markdown("### Preferences")
+
     language = st.selectbox("Language / भाषा", list(LANGUAGE_CODES.keys()), index=0)
 
     demo_mode = st.checkbox(
@@ -60,7 +67,6 @@ with st.sidebar:
             "or add crop_disease_model.tflite + class_names.json once training finishes."
         )
 
-    st.divider()
     city = st.text_input(
         "Your city (optional)",
         help="Used to check current + upcoming humidity/temperature for a "
@@ -68,22 +74,34 @@ with st.sidebar:
     )
 
     st.divider()
-    st.header("Diagnosis History")
+    st.markdown('<span class="eyebrow">Diagnosis History</span>', unsafe_allow_html=True)
     entries = history_store.get_all_entries(limit=10)
     if not entries:
-        st.caption("No diagnoses yet.")
+        st.caption("No diagnoses yet — your past results will appear here.")
     for entry in entries:
         label = entry.diagnosis_class or entry.action.replace("_", " ")
-        conf = f" ({entry.confidence:.0%})" if entry.confidence else ""
-        st.caption(f"{entry.timestamp[:16].replace('T', ' ')} — {label}{conf}")
+        label = label.replace("___", " — ").replace("_", " ")
+        conf = f" · {entry.confidence:.0%}" if entry.confidence else ""
+        st.markdown(
+            f'<div class="history-chip">{entry.timestamp[:16].replace("T", " ")}'
+            f'<br><strong>{label}</strong>{conf}</div>',
+            unsafe_allow_html=True,
+        )
 
 # ---------------------------------------------------------------------------
-# Top-level tabs
+# Top-level header + tabs
 # ---------------------------------------------------------------------------
-st.title("🌾 Crop Disease Voice Assistant")
+st.markdown(
+    banner_html(
+        "🌾",
+        "Crop Disease Voice Assistant",
+        "Photo diagnosis, spoken advice, and a free crop reference library — built for the field.",
+    ),
+    unsafe_allow_html=True,
+)
 
 tab_diagnose, tab_library, tab_fertilizer = st.tabs(
-    ["🩺 Diagnose", "📚 Disease Library", "🧪 Fertilizer Calculator"]
+    ["🩺  Diagnose", "📚  Disease Library", "🧪  Fertilizer Calculator"]
 )
 
 # ===========================================================================
@@ -97,10 +115,13 @@ with tab_diagnose:
     if "last_result" not in st.session_state:
         st.session_state.last_result = None
 
+    st.markdown(step_html(1, "Provide a photo of the affected leaf"), unsafe_allow_html=True)
+
     input_method = st.radio(
         "How do you want to provide a photo?",
         ["📁 Upload from gallery", "📷 Take a photo now"],
         horizontal=True,
+        label_visibility="collapsed",
     )
 
     uploaded_image = None
@@ -109,11 +130,12 @@ with tab_diagnose:
     else:
         uploaded_image = st.camera_input("Take a photo of the leaf")
 
-    with st.expander("Optional: ask a question by voice"):
+    st.markdown(step_html(2, "Optional — ask a question by voice"), unsafe_allow_html=True)
+    with st.expander("Record a question about your crop"):
         voice_question = st.audio_input("Record your question")
 
-    col1, col2 = st.columns([1, 1])
-    diagnose_clicked = col1.button("🔍 Diagnose", type="primary", disabled=uploaded_image is None)
+    st.markdown(step_html(3, "Get your diagnosis"), unsafe_allow_html=True)
+    diagnose_clicked = st.button("🔍  Diagnose", type="primary", disabled=uploaded_image is None, use_container_width=True)
 
     if diagnose_clicked and uploaded_image is not None:
         os.makedirs("storage/uploads", exist_ok=True)
@@ -237,8 +259,13 @@ with tab_diagnose:
         st.divider()
 
         if result["action"] == "give_advice":
-            st.success(f"**Diagnosis:** {result['diagnosis'].predicted_class.replace('___', ' — ').replace('_', ' ')}")
-            st.caption(f"Confidence: {result['diagnosis'].confidence:.0%}")
+            diag = result["diagnosis"]
+            name = diag.predicted_class.replace("___", " — ").replace("_", " ")
+            tier_color = TIER_COLORS.get(diag.tier, TIER_COLORS["medium"])
+            st.markdown(
+                field_report_html("Field Report", name, diag.confidence, tier_color),
+                unsafe_allow_html=True,
+            )
         elif result["action"] == "request_better_photo":
             st.warning(result["message"])
         else:
@@ -311,19 +338,33 @@ with tab_diagnose:
 # ===========================================================================
 with tab_library:
     st.caption(
-        f"Browse all {len(DISEASE_LIBRARY)} conditions this app can recognize — "
-        "no photo needed. Symptoms and prevention are general reference "
-        "information, not a substitute for an actual diagnosis."
+        f"{len(DISEASE_LIBRARY)} conditions across {len(get_all_crops())} crops — no photo needed. "
+        f"{count_diagnosable()} are recognized directly from a photo by this app's model; "
+        f"the other {count_reference_only()} are reference-only browsing, clearly marked below. "
+        "Symptoms and prevention are general information, not a substitute for an actual diagnosis."
     )
 
-    crop_filter = st.selectbox("Filter by crop", ["All crops"] + get_all_crops())
+    lib_col1, lib_col2 = st.columns([2, 1])
+    with lib_col1:
+        crop_filter = st.selectbox("Filter by crop", ["All crops"] + get_all_crops())
+    with lib_col2:
+        scope_filter = st.selectbox("Show", ["All entries", "Photo-diagnosable only", "Reference only"])
 
     crops_to_show = get_all_crops() if crop_filter == "All crops" else [crop_filter]
     for crop in crops_to_show:
-        st.subheader(crop)
-        for class_name, info in get_entries_for_crop(crop):
+        crop_entries = get_entries_for_crop(crop)
+        if scope_filter == "Photo-diagnosable only":
+            crop_entries = [(k, v) for k, v in crop_entries if v.is_diagnosable]
+        elif scope_filter == "Reference only":
+            crop_entries = [(k, v) for k, v in crop_entries if not v.is_diagnosable]
+        if not crop_entries:
+            continue
+
+        st.markdown(f"### {crop}")
+        for class_name, info in crop_entries:
             icon = "✅" if info.is_healthy else "⚠️"
             with st.expander(f"{icon} {info.condition}"):
+                st.markdown(tag_pill_html(info.is_diagnosable), unsafe_allow_html=True)
                 st.markdown(f"**Symptoms:** {info.symptoms}")
                 st.markdown(f"**Prevention:** {info.prevention}")
 
@@ -345,7 +386,7 @@ with tab_fertilizer:
     with fc_col3:
         fc_area = st.number_input("Land area (acres)", min_value=0.1, value=1.0, step=0.1)
 
-    if st.button("Calculate"):
+    if st.button("Calculate", type="primary"):
         plan = fertilizer_calculator.calculate(fc_crop, fc_stage, fc_area)
         st.success(f"**Estimated fertilizer needs for {plan.area_acres} acre(s) of {plan.crop} ({plan.stage}):**")
         m1, m2, m3 = st.columns(3)

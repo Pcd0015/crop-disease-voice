@@ -27,6 +27,34 @@ BASE_RATES_KG_PER_ACRE = {
     "Blueberry":    {"N": 30, "P": 15, "K": 25},
     "Raspberry":    {"N": 35, "P": 15, "K": 30},
     "Orange (Citrus)": {"N": 55, "P": 20, "K": 45},
+    # Added alongside the reference-only disease library entries — general
+    # published per-acre starting guidelines for these crops.
+    "Rice":                   {"N": 48, "P": 24, "K": 16},
+    "Wheat":                  {"N": 48, "P": 24, "K": 16},
+    "Cotton":                 {"N": 32, "P": 16, "K": 16},
+    "Sugarcane":              {"N": 100, "P": 24, "K": 40},
+    "Banana":                 {"N": 80, "P": 24, "K": 100},
+    "Mango":                  {"N": 40, "P": 20, "K": 40},
+    "Onion":                  {"N": 40, "P": 20, "K": 20},
+    "Cabbage":                {"N": 50, "P": 25, "K": 25},
+    "Cauliflower":            {"N": 50, "P": 25, "K": 25},
+    "Groundnut (Peanut)":     {"N": 8, "P": 20, "K": 16},   # legume — fixes some own nitrogen
+    "Chickpea (Gram)":        {"N": 8, "P": 16, "K": 8},    # legume — fixes some own nitrogen
+    "Mustard":                {"N": 32, "P": 16, "K": 8},
+    "Sunflower":              {"N": 24, "P": 16, "K": 16},
+    "Chili (Pepper)":         {"N": 40, "P": 20, "K": 20},
+    "Brinjal (Eggplant)":     {"N": 40, "P": 20, "K": 20},
+    "Cucumber":               {"N": 30, "P": 16, "K": 30},
+    "Watermelon":             {"N": 30, "P": 16, "K": 30},
+    "Papaya":                 {"N": 45, "P": 20, "K": 45},
+    "Guava":                  {"N": 35, "P": 15, "K": 30},
+    "Pomegranate":            {"N": 25, "P": 10, "K": 25},
+    "Turmeric":               {"N": 24, "P": 20, "K": 20},
+    "Ginger":                 {"N": 30, "P": 24, "K": 20},
+    "Garlic":                 {"N": 40, "P": 20, "K": 20},
+    "Okra (Lady's finger)":   {"N": 40, "P": 20, "K": 20},
+    "Carrot":                 {"N": 24, "P": 20, "K": 24},
+    "Spinach":                {"N": 24, "P": 12, "K": 12},
 }
 
 # Growth-stage multipliers — early stages need less, peak vegetative/fruiting need more
@@ -66,8 +94,8 @@ def calculate(crop: str, stage: str, area_acres: float) -> FertilizerPlan:
         "This is a general starting estimate, not a substitute for a soil "
         "test. Actual needs vary by soil condition and local recommendations."
     )
-    if crop == "Soybean":
-        note += " Soybean fixes some of its own nitrogen, so N needs are lower than most crops."
+    if crop in ("Soybean", "Groundnut (Peanut)", "Chickpea (Gram)"):
+        note += f" {crop} fixes some of its own nitrogen, so N needs are lower than most crops."
 
     return FertilizerPlan(
         crop=crop,
