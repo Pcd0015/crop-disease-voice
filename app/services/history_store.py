@@ -88,3 +88,53 @@ def get_recent_by_class(diagnosis_class: str, limit: int = 5) -> list[HistoryEnt
     ).fetchall()
     conn.close()
     return [HistoryEntry(**dict(row)) for row in rows]
+
+
+@dataclass
+class ProgressInfo:
+    previous_entry: HistoryEntry
+    days_since: int
+    confidence_delta: Optional[float]  # positive = confidence went up since last time
+
+
+def get_progress_info(diagnosis_class: str, current_confidence: Optional[float]) -> Optional[ProgressInfo]:
+    """
+    Finds the most recent PRIOR diagnosis of the same class, so the app can
+    tell the farmer "you saw this on your plant before" instead of treating
+    every visit as a first-time case. Call this BEFORE save_entry() for the
+    current diagnosis, so the lookup naturally excludes the current visit.
+    Returns None if this is the first time this class has been logged.
+
+    Note: on hosts without persistent disk (e.g. Render's free tier), this
+    history resets whenever the container restarts — it tracks progress
+    within a running instance's lifetime, not permanently across redeploys.
+    """
+    previous = next(iter(get_recent_by_class(diagnosis_class, limit=1)), None)
+    if previous is None:
+        return None
+
+    previous_time = datetime.fromisoformat(previous.timestamp)
+    days_since = (datetime.utcnow() - previous_time).days
+
+    confidence_delta = None
+    if current_confidence is not None and previous.confidence is not None:
+        confidence_delta = current_confidence - previous.confidence
+
+    return ProgressInfo(previous_entry=previous, days_since=days_since, confidence_delta=confidence_delta)
+
+
+def format_progress_note(progress: ProgressInfo) -> str:
+    when = "today" if progress.days_since == 0 else (
+        "yesterday" if progress.days_since == 1 else f"{progress.days_since} days ago"
+    )
+    note = f"This same issue was last diagnosed {when}"
+    if progress.confidence_delta is not None:
+        if progress.confidence_delta > 0.05:
+            note += ", and confidence is higher this time — may be spreading or more visible now."
+        elif progress.confidence_delta < -0.05:
+            note += ", and confidence is lower this time — may be improving or less visible now."
+        else:
+            note += ", looking about the same as before."
+    else:
+        note += "."
+    return note

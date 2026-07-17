@@ -134,6 +134,13 @@ if diagnose_clicked and uploaded_image is not None:
                 # Weather is a bonus, not required — never block a diagnosis on it
                 weather_error = str(e)
 
+    progress = None
+    if routed.action == "give_advice":
+        progress = history_store.get_progress_info(
+            routed.diagnosis.predicted_class, routed.diagnosis.confidence
+        )
+    progress_note = history_store.format_progress_note(progress) if progress else None
+
     if routed.action == "give_advice":
         with st.spinner("Getting advice..."):
             advice = generate_advice(
@@ -141,6 +148,7 @@ if diagnose_clicked and uploaded_image is not None:
                 confidence=routed.diagnosis.confidence,
                 language=language,
                 weather_risk_note=weather.risk_note if weather else None,
+                progress_note=progress_note,
             )
             spoken_text = advice.text
             st.session_state.session = ConversationSession(
@@ -173,6 +181,7 @@ if diagnose_clicked and uploaded_image is not None:
         "diagnosis": routed.diagnosis,
         "weather": weather,
         "weather_error": weather_error,
+        "progress": progress,
     }
 
 # ---------------------------------------------------------------------------
@@ -199,6 +208,11 @@ if st.session_state.last_result:
         )
     elif result.get("weather_error"):
         st.caption(f"Weather check skipped: {result['weather_error']}")
+
+    if result.get("progress"):
+        p = result["progress"]
+        prev_conf = f"{p.previous_entry.confidence:.0%}" if p.previous_entry.confidence else "unknown"
+        st.info(f"📋 {history_store.format_progress_note(p)} (was {prev_conf} confidence then)")
 
     st.write(result["spoken_text"])
     st.audio(result["audio_path"])
