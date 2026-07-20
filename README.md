@@ -1,210 +1,190 @@
----
-title: Crop Disease Voice Assistant
-emoji: 🌾
-colorFrom: green
-colorTo: yellow
-sdk: docker
-app_port: 7860
-pinned: false
----
-
 <div align="center">
 
-# 🌾 Crop Disease Voice Assistant
+# Crop Disease Voice Assistant
+### Voice-First Crop Disease Diagnosis for Smallholder Farmers
 
-### Point your phone at a sick leaf. Get spoken advice in your own language.
+Photo/Voice → CV Diagnosis → Confidence Router → Weather & Progress-Aware Advice → Spoken Response
 
-[![Live Demo](https://img.shields.io/badge/🚀_Live_Demo-crop--disease--voice.onrender.com-2ea44f?style=for-the-badge)](https://crop-disease-voice.onrender.com/)
-![Python](https://img.shields.io/badge/Python-3.10+-3776AB?style=flat-square&logo=python&logoColor=white)
-![Streamlit](https://img.shields.io/badge/Streamlit-UI-FF4B4B?style=flat-square&logo=streamlit&logoColor=white)
-![TensorFlow](https://img.shields.io/badge/TensorFlow-Lite-FF6F00?style=flat-square&logo=tensorflow&logoColor=white)
-![Gemini](https://img.shields.io/badge/Gemini-Advice-8E75B2?style=flat-square&logo=googlegemini&logoColor=white)
-![Docker](https://img.shields.io/badge/Docker-Deployed-2496ED?style=flat-square&logo=docker&logoColor=white)
-![Free tier](https://img.shields.io/badge/Cost-$0-brightgreen?style=flat-square)
+[![Python](https://img.shields.io/badge/python-3.11-blue.svg)](https://www.python.org/)
+[![Streamlit](https://img.shields.io/badge/UI-Streamlit-FF4B4B.svg)](https://streamlit.io/)
+[![TensorFlow](https://img.shields.io/badge/model-EfficientNetB0-FF6F00.svg)](https://www.tensorflow.org/)
+[![Gemini](https://img.shields.io/badge/LLM-Gemini-8E75B2.svg)](https://ai.google.dev/)
+[![Deploy](https://img.shields.io/badge/deploy-Render-46E3B7.svg)](https://render.com)
 
-**[👉 Try it live](https://crop-disease-voice.onrender.com/)** — no signup, works on your phone
+[Live Demo](https://crop-disease-voice.onrender.com) · [How It Works](#how-it-works) · [Quick Start](#quick-start) · [Deployment](#deployment) · [Known Gaps](#known-gaps)
 
 </div>
 
 ---
 
-No internet-scale dataset of labeled farmer photos, no funding, no GPU
-server — just free tiers, stitched together honestly. This is what that
-looks like when it actually works end to end.
+## What it does
 
-## ✨ What it does
+A farmer uploads or photographs a crop leaf, optionally asks a question out loud, and the app:
 
-| | |
-|---|---|
-| 📷 **Snap or upload a leaf photo** | Camera or gallery, whichever's easier in the field |
-| 🧠 **Get a real diagnosis** | EfficientNetB0 model, 38 disease classes across 14 crops |
-| 🎯 **Trust the confidence, not just the answer** | Below 80%? It says so — asks for a better photo or flags an expert, instead of guessing |
-| 🗣️ **Hear the advice, in your language** | Hindi, Marathi, Telugu, Tamil, Bengali, Kannada, Gujarati, Punjabi, English |
-| 🌦️ **See disease risk before symptoms hit** | 3-day forward-looking weather forecast for fungal-risk conditions |
-| 📋 **Track whether treatment is working** | Compares today's diagnosis against your last one for the same crop |
-| ❓ **Ask follow-up questions** | Typed or spoken, grounded in your actual diagnosis |
-| 📚 **Browse a free disease library** | All 38 classes, symptoms + prevention, no photo required |
-| 🧪 **Estimate fertilizer needs** | N-P-K by crop, growth stage, land area |
+1. **Classifies the disease** using a fine-tuned EfficientNetB0 model (38 classes across 14 crops, trained on PlantVillage, 96.2% validation accuracy)
+2. **Routes on confidence, honestly** — high confidence gets a full diagnosis, medium confidence asks for a clearer photo, low confidence flags the case for expert review instead of guessing
+3. **Builds context** — current weather risk, a 3-day forward-looking disease-risk forecast, and whether this same disease was seen on a prior visit
+4. **Generates farmer-facing advice** via Gemini — organic and chemical treatment options, in the farmer's chosen language, aware of the weather/progress context above
+5. **Speaks the response aloud** via text-to-speech, and supports a grounded follow-up conversation, typed or by voice
+6. **Logs every diagnosis** for progress tracking across future visits
 
-## 🖼️ See it in action
+---
 
-> Diagnosis in Marathi, with live weather risk and a 3-day forecast:
-
-<img width="820" alt="Field report showing Tomato Late Blight diagnosis with confidence bar, weather, and 3-day risk forecast" src="./screenshots/diagnose-flow.png">
-
-*(Drop your own screenshots into `/screenshots` — GitHub renders them automatically once pushed.)*
-
-## 🧭 How it all fits together
+## How It Works
 
 ```mermaid
 flowchart TD
-    A[📷 Leaf photo] --> B[🧠 Disease detection<br/>EfficientNetB0 · TFLite]
-    V[🎙️ Voice question] --> S[📝 Speech-to-text<br/>faster-whisper]
-    B --> C{Confidence}
-    C -->|"≥ 80%"| D[✅ Give advice]
-    C -->|"60–80%"| E[📷 Ask for better photo]
-    C -->|"< 60%"| F[🚩 Flag for expert]
+    IN["Leaf photo (upload or live camera)<br/>+ optional voice question"]
+    STT["Speech-to-Text<br/>faster-whisper (local, free)"]
+    CV["Disease Classification<br/>EfficientNetB0 (TFLite)"]
+    ROUTE{"Confidence Router"}
+    CTX["Context Builders<br/>weather risk · risk forecast · progress vs. last visit"]
+    LLM["Advice Generation<br/>Gemini — multilingual, context-aware"]
+    TTS["Text-to-Speech<br/>gTTS"]
+    UI["Streamlit UI<br/>Field Report · audio · follow-up chat"]
+    HIST[("SQLite<br/>diagnosis history")]
 
-    D --> G[🌦️ Weather + risk forecast]
-    D --> H[📋 Progress vs. last time]
-    D --> I[👥 Community sightings]
-    S --> J
-
-    G --> J[✨ Gemini advice<br/>multilingual]
-    H --> J
-    I --> J
-
-    J --> K[🔊 Text-to-speech<br/>gTTS]
-    K --> L((💬 Streamlit UI))
-    E --> L
-    F --> L
-    L --> M[🗂️ History log]
-    L --> N[❓ Follow-up Q&A]
-
-    style D fill:#2ea44f,color:#fff
-    style E fill:#e8a33d,color:#fff
-    style F fill:#d13232,color:#fff
-    style L fill:#4b6bfb,color:#fff
+    IN --> STT --> CV
+    IN --> CV
+    CV --> ROUTE
+    ROUTE -->|"≥ 80% confidence"| CTX --> LLM --> TTS --> UI
+    ROUTE -->|"60–80%"| UI
+    ROUTE -->|"< 60%"| UI
+    LLM -.-> HIST
+    HIST -.-> CTX
 ```
 
-## 🎯 Why confidence tiers matter
-
-Most tools give you a confident-sounding answer no matter what. This one doesn't:
-
-```
-≥ 80% confidence   →  ✅ Full diagnosis + spoken advice
-60–80% confidence  →  📷 "Can you retake that photo?"
-< 60% confidence   →  🚩 "This needs a human expert"
-```
-
-A low-confidence guess dressed up as certainty is worse than no answer at
-all when someone's acting on it in a real field.
-
-## 🚀 Quick start
-
-```bash
-git clone <this-repo>
-cd crop_disease_voice
-pip install -r requirements.txt
-cp .env.example .env      # add your free GEMINI_API_KEY → aistudio.google.com/apikey
-streamlit run streamlit_app.py
-```
-
-**No trained model yet?** Tick **Demo mode** in the sidebar. It runs the
-*entire* flow — photo → diagnosis → real Gemini advice → real voice output
-→ real follow-up chat — against a fake diagnosis, so you can build and test
-everything else while training runs.
-
-**Want to train your own model?** `training/train_disease_model.py` trains
-an EfficientNetB0 on PlantVillage (38 classes, 14 crops) on a **free Colab
-T4 GPU** in ~30–45 minutes — dataset auto-downloads, no Kaggle account needed.
-
-## 🗂️ Project structure
-
-```
-crop_disease_voice/
-├── streamlit_app.py                    # Diagnose · Library · Fertilizer tabs
-├── Dockerfile                          # Deployed to Render, free tier
-├── requirements.txt
-├── training/
-│   └── train_disease_model.py          # Free Colab GPU training script
-├── app/
-│   ├── ui_theme.py                     # Custom CSS + HTML card helpers
-│   ├── services/
-│   │   ├── disease_detection.py        # Model loading + inference
-│   │   ├── response_router.py          # Confidence-tier routing
-│   │   ├── speech_to_text.py           # faster-whisper (local, free)
-│   │   ├── advice_generation.py        # Gemini advice + follow-up chat
-│   │   ├── text_to_speech.py           # gTTS, 9 languages
-│   │   ├── voice_pipeline.py           # End-to-end orchestration
-│   │   ├── weather.py                  # Current + 3-day risk forecast
-│   │   ├── fertilizer_calculator.py    # N-P-K estimates
-│   │   └── history_store.py            # History, progress, community notes
-│   ├── data/
-│   │   └── disease_library.py          # 38-class symptom/prevention reference
-│   └── models/                         # Trained model files live here
-└── tests/
-```
-
-## ☁️ Deployment
-
-Live on [Render](https://render.com) (free tier) via Docker — full
-walkthrough in [`DEPLOYMENT.md`](./DEPLOYMENT.md). `GEMINI_API_KEY` and the
-OpenWeatherMap key are read from environment secrets — never hardcoded,
-never committed.
-
-## ✅ What's built vs. what's not
-
-<table>
-<tr><td valign="top">
-
-**Built**
-- ✅ Confidence-tiered CV diagnosis
-- ✅ Voice in, voice out, 9 languages
-- ✅ Grounded follow-up conversation
-- ✅ Weather + 3-day disease-risk forecast
-- ✅ Progress tracking vs. past diagnoses
-- ✅ App-wide community sightings note
-- ✅ Live camera capture
-- ✅ Disease reference library
-- ✅ Fertilizer calculator
-
-</td><td valign="top">
-
-**Deliberately not built**
-- ❌ Agmarknet mandi price lookup
-- ❌ Government scheme pointer
-- ❌ True GPS-based outbreak mapping
-- ❌ Farmer community forum
-- ❌ Offline on-device inference
-- ❌ History persistence across redeploys
-
-</td></tr>
-</table>
-
-> **Honesty note on "community sightings":** this counts how many other
-> diagnoses of the same class were logged app-wide in the last 14 days.
-> It's not GPS-based — it tells you how often *this app* has seen the
-> diagnosis recently, not what's happening near you specifically.
-
-## 🐛 Known issue — confidence bar renders as raw HTML
-
-The field-report confidence bar in `app/ui_theme.py` can print literal
-`<div>` tags instead of a styled bar. Cause: the HTML helper returns an
-**indented** multi-line string, and Streamlit's Markdown parser reads 4+
-space indentation as a fenced code block before the HTML is ever parsed.
-
-**Fix:** return single-line, unindented HTML from every helper in that file
-(`field_report_html`, `banner_html`, `step_html`, `tag_pill_html`).
-
-## 📄 License
-
-MIT
+**Why the confidence router matters:** most consumer plant-diagnosis apps always return a confident-sounding answer. This one doesn't — below 80% confidence it asks for a better photo or flags the case for a human expert instead of guessing.
 
 ---
 
-<div align="center">
+## Features
 
-Built step by step, on free tiers, for people who need it to just work in the field.
+| | |
+|---|---|
+| 🎙️ **Voice-first** | Ask a question by voice, hear the diagnosis and advice spoken back — no reading required |
+| 📷 **Live camera or gallery upload** | Take a photo directly in-app, or upload one — no separate camera app needed |
+| 🎯 **Honest confidence-tier routing** | High/medium/low tiers, not a single always-confident output |
+| 🌦️ **Weather-aware advice** | Current conditions plus a forward-looking 3-day disease-risk forecast, factored directly into the spoken advice |
+| 📋 **Progress tracking** | Compares today's diagnosis to the last time the same disease was logged, and says whether it looks better, worse, or the same |
+| 🗣️ **Grounded follow-up conversation** | Ask questions about your diagnosis, typed or by voice |
+| 📚 **Disease reference library** | Browse symptoms/prevention for all 38 trained classes without uploading a photo |
+| 🧪 **Fertilizer calculator** | N-P-K estimate by crop, growth stage, and land area |
+| 🔊 **9-language support** | English, Hindi, Marathi, Telugu, Tamil, Bengali, Kannada, Gujarati, Punjabi |
+| 🆓 **Zero-cost stack** | Every service used (model hosting, LLM, weather, TTS/STT, deploy) has a genuine free tier |
 
-</div>
+---
+
+## Tech Stack
+
+| Layer | Choice |
+|---|---|
+| Vision model | EfficientNetB0, two-stage transfer learning (frozen → fine-tuned), trained on PlantVillage (38 classes), exported to TFLite for CPU inference |
+| Speech-to-text | [faster-whisper](https://github.com/SYSTRAN/faster-whisper) — local, free, no API cost |
+| Advice generation | Google Gemini (`google-genai` SDK) — multilingual, weather- and progress-aware prompting |
+| Text-to-speech | gTTS |
+| UI | Streamlit, with a custom design system (`app/ui_theme.py`) |
+| History & progress tracking | SQLite |
+| Weather | [OpenWeatherMap](https://openweathermap.org/) free tier (current conditions + 5-day/3-hour forecast) |
+| Deployment | Docker on [Render](https://render.com) (free Web Service) |
+
+---
+
+## Quick Start
+
+### 1. Train the model (Google Colab — free GPU)
+
+```
+Runtime → Change runtime type → T4 GPU
+```
+Copy `training/train_disease_model.py` into a cell and run it (~30–45 min). Download the resulting `crop_disease_model.tflite` and `class_names.json` into `app/models/`.
+
+### 2. Run locally
+
+```bash
+python -m venv venv
+source venv/bin/activate       # Windows: venv\Scripts\activate
+pip install -r requirements.txt
+
+cp .env.example .env           # set GEMINI_API_KEY (required), OPENWEATHER_API_KEY (optional)
+
+streamlit run streamlit_app.py
+```
+Opens at `http://localhost:8501`. No trained model yet? **Demo mode** (auto-enabled when `app/models/` is empty) runs the full flow — including real Gemini advice and real TTS — against a fake diagnosis, so you can test everything else first.
+
+### 3. Run with Docker
+
+```bash
+docker build -t crop-disease-voice .
+docker run -p 7860:7860 --env-file .env crop-disease-voice
+```
+
+### Environment variables
+
+| Variable | Required | Purpose |
+|---|---|---|
+| `GEMINI_API_KEY` | Yes | Advice generation and follow-up conversation |
+| `OPENWEATHER_API_KEY` | No | Weather risk note + forecast; app runs fine without it, the weather card just doesn't show |
+
+### Running tests
+
+```bash
+pytest tests/ -v
+```
+Fully mocked — runs without a trained model, a live Gemini key, or network access.
+
+---
+
+## Deployment
+
+The live demo runs entirely on Render's free tier:
+
+| Service | Provider | Why |
+|---|---|---|
+| Compute | [Render](https://render.com) (free Web Service, Docker) | Native Docker support, no card required; sleeps after 15 min idle, wakes on request |
+| Secrets | Render environment variables | `GEMINI_API_KEY` / `OPENWEATHER_API_KEY`, never committed to git |
+
+To deploy your own copy: fork the repo, create a Render **Web Service** pointed at your fork (Docker runtime, auto-detected from the included `Dockerfile`), add the two environment variables above, and deploy.
+
+---
+
+## Known Gaps
+
+Being upfront about what's not built or not production-hardened yet:
+
+- **History doesn't survive a redeploy** — Render's free tier has no persistent disk, so `storage/history.db` resets whenever the container restarts. Progress tracking works within a running instance's lifetime, not permanently. Fix: Render's paid disk add-on, or an external free-tier DB (e.g. Supabase).
+- **No on-device/offline inference** — the model is already exported to TFLite, but there's no client-side (mobile/edge) integration path yet, only server-side.
+- **"Community sightings" is not GPS-based** — it counts how often this app has logged the same diagnosis class recently, not a verified geographic radius. Framed honestly in the UI as "logged by other users of this app."
+- **No mandi price lookup or government scheme pointer** — considered, not built.
+- **No blockchain traceability module** — mentioned in the original spec as a future-ready stretch feature, not started.
+- **No end-user authentication** — the deployed instance is open to anyone with the link.
+
+## Project Layout
+
+```
+crop_disease_voice/
+├── training/
+│   └── train_disease_model.py     # Run on Google Colab (free GPU)
+├── app/
+│   ├── services/
+│   │   ├── disease_detection.py   # Loads TFLite model, runs inference
+│   │   ├── response_router.py     # Confidence-tier routing
+│   │   ├── speech_to_text.py      # faster-whisper
+│   │   ├── advice_generation.py   # Gemini — advice + follow-up conversation
+│   │   ├── text_to_speech.py      # gTTS
+│   │   ├── weather.py             # OpenWeatherMap — current + forecast risk
+│   │   ├── history_store.py       # SQLite — diagnosis log + progress tracking
+│   │   └── fertilizer_calculator.py
+│   ├── data/
+│   │   └── disease_library.py     # Static reference data for all 38 classes
+│   ├── ui_theme.py                # Design system (CSS + HTML component helpers)
+│   └── models/                    # Trained model files go here
+├── tests/                         # Mocked — no model/API key/network required
+├── streamlit_app.py                # Main app
+├── Dockerfile
+└── requirements.txt
+```
+
+## License
+
+No license file is included yet. If you plan to share this publicly, adding one (MIT is a common choice for portfolio projects) is worth doing before wider distribution.
