@@ -95,20 +95,49 @@ print(f"Loaded {num_classes} classes.")
 #    Augmentation matters a lot here — real farmer photos are rarely clean,
 #    well-lit, top-down leaf shots like the training set, so we simulate
 #    that variability during training.
+#
+#    Strengthened vs. the original version: wider zoom range (including
+#    zooming OUT, since real photos often have the leaf as a smaller part
+#    of a busier frame — the original only zoomed in), added translation
+#    (real photos are rarely perfectly centered), and cutout (simulates
+#    partial occlusion — a shadow, another leaf, a hand — covering part of
+#    the leaf, which is common in real-world photos but never happens in
+#    PlantVillage's clean lab shots).
 # ---------------------------------------------------------------------------
 data_augmentation = tf.keras.Sequential([
     layers.RandomFlip("horizontal_and_vertical"),
-    layers.RandomRotation(0.2),
-    layers.RandomZoom(0.15),
-    layers.RandomContrast(0.2),
-    layers.RandomBrightness(0.2),
+    layers.RandomRotation(0.25),
+    layers.RandomZoom(height_factor=(-0.25, 0.15)),  # both zoom in AND out
+    layers.RandomTranslation(height_factor=0.15, width_factor=0.15),
+    layers.RandomContrast(0.25),
+    layers.RandomBrightness(0.25),
 ])
+
+
+def _random_cutout(image, label, cutout_size=40, prob=0.3):
+    """Randomly blacks out a square patch — simulates a shadow, another
+    leaf, or a hand partially covering the subject, which real-world
+    photos have often but PlantVillage's lab photos never do."""
+    if tf.random.uniform([]) > prob:
+        return image, label
+    img_shape = tf.shape(image)
+    h, w = img_shape[0], img_shape[1]
+    y = tf.random.uniform([], 0, h - cutout_size, dtype=tf.int32)
+    x = tf.random.uniform([], 0, w - cutout_size, dtype=tf.int32)
+    mask = tf.ones((cutout_size, cutout_size, 3), dtype=image.dtype)
+    padded_mask = tf.pad(
+        mask,
+        [[y, h - y - cutout_size], [x, w - x - cutout_size], [0, 0]],
+    )
+    image = image * (1 - padded_mask)
+    return image, label
 
 
 def prepare(ds, training=False):
     if training:
         ds = ds.map(lambda x, y: (data_augmentation(x, training=True), y),
                     num_parallel_calls=tf.data.AUTOTUNE)
+        ds = ds.map(_random_cutout, num_parallel_calls=tf.data.AUTOTUNE)
     return ds.prefetch(tf.data.AUTOTUNE)
 
 
