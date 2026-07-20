@@ -174,41 +174,38 @@ section[data-testid="stSidebar"] .block-container { padding-top: 1.6rem; }
 
 
 def banner_html(icon: str, title: str, subtitle: str) -> str:
-    return f"""
-    <div class="app-banner">
-        <div class="mark">{icon}</div>
-        <div>
-            <p class="title">{title}</p>
-            <p class="subtitle">{subtitle}</p>
-        </div>
-    </div>
-    """
+    return (
+        '<div class="app-banner">'
+        f'<div class="mark">{icon}</div>'
+        f'<div><p class="title">{title}</p><p class="subtitle">{subtitle}</p></div>'
+        '</div>'
+    )
 
 
 def step_html(number: int, label: str) -> str:
-    return f"""
-    <div class="step-row">
-        <div class="step-num">{number}</div>
-        <div class="step-label">{label}</div>
-    </div>
-    """
+    return (
+        '<div class="step-row">'
+        f'<div class="step-num">{number}</div>'
+        f'<div class="step-label">{label}</div>'
+        '</div>'
+    )
 
 
 def field_report_html(eyebrow: str, name: str, confidence: float | None, tier_color: str) -> str:
     conf_block = ""
     if confidence is not None:
         pct = round(confidence * 100)
-        conf_block = f"""
-        <div class="confidence-track"><div class="confidence-fill" style="width:{pct}%;"></div></div>
-        <div class="confidence-text">CONFIDENCE&nbsp;&nbsp;{pct}%</div>
-        """
-    return f"""
-    <div class="field-report" style="--tier-color:{tier_color};">
-        <span class="eyebrow">{eyebrow}</span>
-        <div class="diagnosis-name">{name}</div>
-        {conf_block}
-    </div>
-    """
+        conf_block = (
+            f'<div class="confidence-track"><div class="confidence-fill" style="width:{pct}%;"></div></div>'
+            f'<div class="confidence-text">CONFIDENCE&nbsp;&nbsp;{pct}%</div>'
+        )
+    return (
+        f'<div class="field-report" style="--tier-color:{tier_color};">'
+        f'<span class="eyebrow">{eyebrow}</span>'
+        f'<div class="diagnosis-name">{name}</div>'
+        f'{conf_block}'
+        '</div>'
+    )
 
 
 def tag_pill_html(is_diagnosable: bool) -> str:
