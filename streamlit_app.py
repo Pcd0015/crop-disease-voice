@@ -130,6 +130,19 @@ with tab_diagnose:
     else:
         uploaded_image = st.camera_input("Take a photo of the leaf")
 
+    with st.expander("📸 Tips for a photo the model can read well"):
+        st.markdown(
+            "- Fill the frame with **one leaf** — avoid whole plants, multiple "
+            "leaves, or busy backgrounds\n"
+            "- Plain background if possible (a hand, a plain sheet of paper, "
+            "or the ground works)\n"
+            "- Natural daylight, no harsh shadows or flash glare\n"
+            "- Hold the camera steady — blurry photos lower confidence a lot\n\n"
+            "The model was trained on close-up, single-leaf photos, so the "
+            "closer your photo matches that, the more confident (and "
+            "accurate) the diagnosis will be."
+        )
+
     st.markdown(step_html(2, "Optional — ask a question by voice"), unsafe_allow_html=True)
     with st.expander("Record a question about your crop"):
         voice_question = st.audio_input("Record your question")

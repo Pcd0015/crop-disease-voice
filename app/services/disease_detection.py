@@ -57,11 +57,50 @@ class DiseaseDetector:
             path = os.path.join(MODEL_DIR, "crop_disease_model.keras")
             return tf.keras.models.load_model(path)
 
-    def _preprocess(self, image_path: str) -> np.ndarray:
-        image = Image.open(image_path).convert("RGB").resize((IMG_SIZE, IMG_SIZE))
+    def _center_square_crop(self, image: Image.Image, zoom: float = 1.0) -> Image.Image:
+        """
+        Crops the largest centered square out of the original photo, then
+        resizes to IMG_SIZE. This replaces the old naive
+        `.resize((IMG_SIZE, IMG_SIZE))`, which squashed/stretched
+        non-square photos — a real accuracy problem for real-world (not
+        PlantVillage-style) photos that aren't perfectly square.
+
+        `zoom < 1.0` crops in tighter than the full square — used for TTA
+        below to also catch cases where the leaf doesn't fill the frame.
+        """
+        w, h = image.size
+        side = min(w, h) * zoom
+        left = (w - side) / 2
+        top = (h - side) / 2
+        box = (left, top, left + side, top + side)
+        return image.crop(box).resize((IMG_SIZE, IMG_SIZE))
+
+    def _tta_views(self, image: Image.Image) -> list:
+        """
+        Test-time augmentation: run inference on a few variants of the same
+        photo and average the results. This costs a few extra ms of CPU
+        time but noticeably improves robustness on real-world photos
+        (different framing/zoom than the lab-style training photos)
+        without needing to retrain anything.
+        """
+        base = self._center_square_crop(image, zoom=1.0)
+        zoomed_in = self._center_square_crop(image, zoom=0.85)
+        return [base, base.transpose(Image.FLIP_LEFT_RIGHT), zoomed_in]
+
+    def _to_array(self, image: Image.Image) -> np.ndarray:
         arr = np.array(image, dtype=np.float32)
-        arr = np.expand_dims(arr, axis=0)
-        return arr
+        return np.expand_dims(arr, axis=0)
+
+    def _predict_probs(self, image_path: str) -> np.ndarray:
+        image = Image.open(image_path).convert("RGB")
+        views = self._tta_views(image)
+
+        all_probs = []
+        for view in views:
+            arr = self._to_array(view)
+            probs = self._predict_tflite(arr) if self.use_tflite else self._predict_keras(arr)
+            all_probs.append(probs)
+        return np.mean(all_probs, axis=0)
 
     def _predict_tflite(self, arr: np.ndarray) -> np.ndarray:
         input_details = self.model.get_input_details()
@@ -74,8 +113,7 @@ class DiseaseDetector:
         return self.model.predict(arr, verbose=0)[0]
 
     def diagnose(self, image_path: str) -> DiagnosisResult:
-        arr = self._preprocess(image_path)
-        probs = self._predict_tflite(arr) if self.use_tflite else self._predict_keras(arr)
+        probs = self._predict_probs(image_path)
 
         top_indices = np.argsort(probs)[::-1][:3]
         top_3 = [(self.class_names[i], float(probs[i])) for i in top_indices]
