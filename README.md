@@ -155,9 +155,6 @@ Being upfront about what's not built or not production-hardened yet:
 - **History doesn't survive a redeploy** — Render's free tier has no persistent disk, so `storage/history.db` resets whenever the container restarts. Progress tracking works within a running instance's lifetime, not permanently. Fix: Render's paid disk add-on, or an external free-tier DB (e.g. Supabase).
 - **No on-device/offline inference** — the model is already exported to TFLite, but there's no client-side (mobile/edge) integration path yet, only server-side.
 - **"Community sightings" is not GPS-based** — it counts how often this app has logged the same diagnosis class recently, not a verified geographic radius. Framed honestly in the UI as "logged by other users of this app."
-- **No mandi price lookup or government scheme pointer** — considered, not built.
-- **No blockchain traceability module** — mentioned in the original spec as a future-ready stretch feature, not started.
-- **No end-user authentication** — the deployed instance is open to anyone with the link.
 
 ## Project Layout
 
@@ -187,4 +184,4 @@ crop_disease_voice/
 
 ## License
 
-No license file is included yet. If you plan to share this publicly, adding one (MIT is a common choice for portfolio projects) is worth doing before wider distribution.
+MIT
